@@ -1,0 +1,48 @@
+# Production Docker Compose Configuration
+# For deployment on task.ziro-one.ir
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-manager-api-prod
+    expose:
+      - "8000"
+    environment:
+      - LIARA_API_KEY=${LIARA_API_KEY}
+      - LIARA_BASE_URL=${LIARA_BASE_URL:-https://api.liara.ir/v1}
+      - LIARA_MODEL=${LIARA_MODEL:-gpt-4o-mini}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FARAZ_SMS_USERNAME=${FARAZ_SMS_USERNAME}
+      - FARAZ_SMS_PASSWORD=${FARAZ_SMS_PASSWORD}
+      - FARAZ_SMS_FROM_NUMBER=${FARAZ_SMS_FROM_NUMBER}
+      - FARAZ_SMS_PATTERN_CODE=${FARAZ_SMS_PATTERN_CODE}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/tasks.db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - task-manager-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  task-manager-network:
+    driver: bridge
+
+volumes:
+  data:
+  logs:

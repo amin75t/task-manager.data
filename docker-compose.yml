@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-manager-api
+    expose:
+      - "8000"
+    environment:
+      - LIARA_API_KEY=${LIARA_API_KEY}
+      - LIARA_BASE_URL=${LIARA_BASE_URL:-https://api.liara.ir/v1}
+      - LIARA_MODEL=${LIARA_MODEL:-gpt-4o-mini}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FARAZ_SMS_USERNAME=${FARAZ_SMS_USERNAME}
+      - FARAZ_SMS_PASSWORD=${FARAZ_SMS_PASSWORD}
+      - FARAZ_SMS_FROM_NUMBER=${FARAZ_SMS_FROM_NUMBER}
+      - FARAZ_SMS_PATTERN_CODE=${FARAZ_SMS_PATTERN_CODE}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/tasks.db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - task-manager-network
+    depends_on:
+      - nginx
+
+  nginx:
+    image: nginx:alpine
+    container_name: task-manager-nginx
+    ports:
+      - "8080:80"   # HTTP on port 8080 (avoids conflict with existing nginx)
+      - "8443:443"  # HTTPS on port 8443
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/nginx:/var/log/nginx
+      # Uncomment for SSL certificates
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - task-manager-network
+
+networks:
+  task-manager-network:
+    driver: bridge
+
+volumes:
+  data:
+  logs:
