@@ -19,6 +19,16 @@ from otp_service import OTPService
 load_dotenv()
 
 
+# Helper function to increment user's data version for mobile sync
+async def increment_user_version(user: UserDB, db: AsyncSession):
+    """
+    Increment the user's data version for mobile app synchronization.
+    Call this whenever tasks are created, updated, or deleted.
+    """
+    user.data_version += 1
+    await db.commit()
+
+
 # Priority enum
 class Priority(str, Enum):
     """Task priority levels"""
@@ -561,12 +571,19 @@ async def get_me(current_user: UserDB = Depends(get_current_user)):
     **Returns:**
     - `user_id`: User's unique identifier
     - `phone`: User's phone number
+    - `data_version`: Version number for mobile sync (increments when tasks change)
     - `created_at`: Account creation timestamp
     - `updated_at`: Last update timestamp
+
+    **Mobile Sync:**
+    - Compare `data_version` with locally stored version
+    - If different, call `GET /tasks` to sync latest data
+    - Update local version after successful sync
     """
     return {
         "user_id": current_user.id,
         "phone": current_user.phone,
+        "data_version": current_user.data_version,
         "created_at": current_user.created_at,
         "updated_at": current_user.updated_at
     }
@@ -776,6 +793,9 @@ async def create_task(
     await db.commit()
     await db.refresh(new_task)
 
+    # Increment user's data version for mobile sync
+    await increment_user_version(current_user, db)
+
     return new_task
 
 
@@ -847,6 +867,9 @@ async def submit_processed_task(
     db.add(new_task)
     await db.commit()
     await db.refresh(new_task)
+
+    # Increment user's data version for mobile sync
+    await increment_user_version(current_user, db)
 
     return new_task
 
@@ -979,5 +1002,8 @@ async def update_task(
 
     await db.commit()
     await db.refresh(task)
+
+    # Increment user's data version for mobile sync
+    await increment_user_version(current_user, db)
 
     return task

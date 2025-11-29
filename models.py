@@ -15,6 +15,7 @@ class UserDB(Base):
     - otp_code: Current OTP code (nullable)
     - otp_created_at: When OTP was created (nullable)
     - otp_verified: Whether OTP has been verified
+    - data_version: Version number for mobile sync (increments on task changes)
     - created_at: Timestamp when user was created
     - updated_at: Timestamp when user was last updated
     """
@@ -25,6 +26,7 @@ class UserDB(Base):
     otp_code = Column(String, nullable=True)
     otp_created_at = Column(DateTime, nullable=True)
     otp_verified = Column(Boolean, default=False)
+    data_version = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
